@@ -66,36 +66,66 @@ def _new_figure(ncols: int = 1, width: float = 9) -> tuple[Figure, list[Axes]]:
     return fig, list(axes[0])
 
 
-def chart_failed_by_country(store: EventStore) -> Figure:
-    data = queries.failed_by_country(store, TOP_N)
-    fig, (ax,) = _new_figure()
-    _barh(ax, data, f"Tentatives échouées par pays (top {TOP_N})",
+def _draw_failed_by_country(ax: Axes, store: EventStore) -> None:
+    _barh(ax, queries.failed_by_country(store, TOP_N),
+          f"Tentatives échouées par pays (top {TOP_N})",
           "Nombre de tentatives échouées", "Pays (code ISO)",
           muted=(COUNTRY_UNKNOWN, COUNTRY_PRIVATE))
-    fig.text(0.01, 0.01, "Gris : pays inconnu (IP non géolocalisée) ou IP privée.",
-             fontsize=8, color=INK_SECONDARY)
+
+
+def _draw_success_by_user(ax: Axes, store: EventStore) -> None:
+    _barh(ax, queries.success_by_user(store, TOP_N), "Connexions réussies par utilisateur",
+          "Nombre de connexions réussies", "Utilisateur")
+
+
+def _draw_invalid_by_user(ax: Axes, store: EventStore) -> None:
+    _barh(ax, queries.invalid_by_user(store, TOP_N),
+          f"'Invalid user' : top {TOP_N} des noms essayés",
+          "Nombre de tentatives", "Nom d'utilisateur invalide")
+
+
+def _draw_invalid_by_ip(ax: Axes, store: EventStore) -> None:
+    _barh(ax, queries.invalid_by_ip(store, TOP_N),
+          f"'Invalid user' : top {TOP_N} des IP sources",
+          "Nombre de tentatives", "Adresse IP")
+
+
+GEO_NOTE: Final[str] = "Gris : pays inconnu (IP non géolocalisée) ou IP privée."
+
+
+def chart_failed_by_country(store: EventStore) -> Figure:
+    fig, (ax,) = _new_figure()
+    _draw_failed_by_country(ax, store)
+    fig.text(0.01, 0.01, GEO_NOTE, fontsize=8, color=INK_SECONDARY)
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     return fig
 
 
 def chart_success_by_user(store: EventStore) -> Figure:
-    data = queries.success_by_user(store, TOP_N)
     fig, (ax,) = _new_figure(width=8)
-    _barh(ax, data, "Connexions réussies par utilisateur",
-          "Nombre de connexions réussies", "Utilisateur")
+    _draw_success_by_user(ax, store)
     fig.tight_layout()
     return fig
 
 
 def chart_invalid_users(store: EventStore) -> Figure:
-    by_user = queries.invalid_by_user(store, TOP_N)
-    by_ip = queries.invalid_by_ip(store, TOP_N)
     fig, (ax_user, ax_ip) = _new_figure(ncols=2, width=14)
-    _barh(ax_user, by_user, f"'Invalid user' : top {TOP_N} des noms essayés",
-          "Nombre de tentatives", "Nom d'utilisateur invalide")
-    _barh(ax_ip, by_ip, f"'Invalid user' : top {TOP_N} des IP sources",
-          "Nombre de tentatives", "Adresse IP")
+    _draw_invalid_by_user(ax_user, store)
+    _draw_invalid_by_ip(ax_ip, store)
     fig.tight_layout()
+    return fig
+
+
+def chart_combined(store: EventStore) -> Figure:
+    """Les 4 panneaux dans une seule fenêtre (grille 2x2)."""
+    fig, axes = plt.subplots(2, 2, figsize=(16, 11), facecolor=SURFACE)
+    _draw_failed_by_country(axes[0][0], store)
+    _draw_success_by_user(axes[0][1], store)
+    _draw_invalid_by_user(axes[1][0], store)
+    _draw_invalid_by_ip(axes[1][1], store)
+    fig.suptitle("Analyse des logs SSH (auth.log)", fontsize=15, fontweight="bold", color=INK)
+    fig.text(0.01, 0.005, GEO_NOTE, fontsize=8, color=INK_SECONDARY)
+    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
     return fig
 
 
@@ -114,9 +144,9 @@ def build_dashboard(
     output_dir: Path = OUTPUT_DIR,
     show: bool = True,
 ) -> list[Path]:
-    """Génère les 3 graphiques en PNG dans output_dir et retourne les fichiers écrits.
+    """Génère les graphiques en PNG dans output_dir (3 individuels + dashboard.png) et retourne les fichiers écrits.
 
-    show=True ouvre aussi les fenêtres matplotlib (ignoré sans écran, backend Agg).
+    show=True ouvre UNE fenêtre matplotlib (dashboard combiné) (ignoré sans écran, backend Agg).
     """
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -128,8 +158,10 @@ def build_dashboard(
         "1_failed_by_country.png": chart_failed_by_country,
         "2_success_by_user.png": chart_success_by_user,
         "3_invalid_users.png": chart_invalid_users,
+        "dashboard.png": chart_combined,  # les 4 panneaux ensemble, seule figure affichée
     }
     written: list[Path] = []
+    combined: Optional[Figure] = None
     figures: list[Figure] = []
     try:
         with EventStore(db_path) as store:
@@ -142,15 +174,21 @@ def build_dashboard(
                 except Exception:  # erreur de dessin matplotlib : on garde les autres graphiques
                     logger.exception("Erreur de dessin pour %s", filename)
                     continue
-                figures.append(fig)
+                if filename == "dashboard.png":
+                    combined = fig
+                else:
+                    figures.append(fig)
                 if _save(fig, output_dir / filename):
                     written.append(output_dir / filename)
     except StorageError:
         logger.error("Dashboard impossible : base inaccessible (%s)", db_path)
 
-    if show and figures and matplotlib.get_backend().lower() != "agg":
-        plt.show()
+    # Une seule fenêtre : on ferme les graphiques individuels (déjà sauvegardés en PNG)
     for fig in figures:
         plt.close(fig)
-    logger.info("Dashboard terminé : %d/%d graphiques", len(written), len(builders))
+    if show and combined is not None and matplotlib.get_backend().lower() != "agg":
+        plt.show()
+    if combined is not None:
+        plt.close(combined)
+    logger.info("Dashboard terminé : %d/%d fichiers", len(written), len(builders))
     return written

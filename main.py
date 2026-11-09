@@ -43,7 +43,7 @@ def main() -> int:
     if not files:
         logger.error("Aucun graphique généré, voir logs/serving.log")
         return 1
-    logger.info("Terminé : %d graphiques dans output/", len(files))
+    logger.info("Terminé : %d fichiers dans output/", len(files))
     return 0
 
 
