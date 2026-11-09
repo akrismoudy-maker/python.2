@@ -127,6 +127,15 @@ class EventStore:
         logger.info("%d événements insérés", len(rows))
         return len(rows)
 
+    def ips_by_priority(self) -> list[str]:
+        """IP distinctes, les plus actives en échecs d'abord (utile si l'API est limitée)."""
+        rows = self.query(
+            "SELECT ip FROM events GROUP BY ip "
+            "ORDER BY SUM(CASE WHEN status = 'Failed' THEN attempts ELSE 0 END) DESC, "
+            "SUM(attempts) DESC"
+        )
+        return [ip for (ip,) in rows]
+
     def query(self, sql: str, params: Sequence[object] = ()) -> list[tuple]:
         """Exécute une requête de lecture (utilisée par serving/)."""
         with self._guard(f"requête : {sql.strip()[:80]}"):
