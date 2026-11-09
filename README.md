@@ -48,3 +48,4 @@ Je n'ai pas modifié `ingestion/` ni `processing/`, donc je les ai contournés d
 
 - ipinfo limite les requêtes sans token, donc certaines IP restent "Unknown". Elles sont retentées au lancement suivant.
 - les logs n'ont pas d'année, je l'ai mise à 2026 dans `config.py`
+# python.2
