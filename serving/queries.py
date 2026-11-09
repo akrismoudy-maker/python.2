@@ -38,3 +38,12 @@ def invalid_by_user(store: EventStore, limit: int = 15) -> list[tuple[str, int]]
         "GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT ?",
         (STATUS_INVALID, limit),
     ))
+
+
+def invalid_by_ip(store: EventStore, limit: int = 15) -> list[tuple[str, int]]:
+    """Lignes 'Invalid user' par adresse IP source."""
+    return _pairs(store.query(
+        "SELECT ip, SUM(attempts) FROM events WHERE status = ? "
+        "GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT ?",
+        (STATUS_INVALID, limit),
+    ))

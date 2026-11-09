@@ -2,7 +2,7 @@
 
 1. tentatives échouées par pays
 2. connexions réussies par utilisateur
-3. tentatives avec 'Invalid user' : par nom d'utilisateur
+3. tentatives avec 'Invalid user' : par nom d'utilisateur et par IP
 """
 from pathlib import Path
 from typing import Final, Optional
@@ -68,20 +68,26 @@ def _new_figure(ncols: int = 1, width: float = 9) -> tuple[Figure, list[Axes]]:
 
 def _draw_failed_by_country(ax: Axes, store: EventStore) -> None:
     _barh(ax, queries.failed_by_country(store, TOP_N),
-          f"Tentatives échouées par pays (top {TOP_N})",
+          f"1. Tentatives échouées par pays (top {TOP_N})",
           "Nombre de tentatives échouées", "Pays (code ISO)",
           muted=(COUNTRY_UNKNOWN, COUNTRY_PRIVATE))
 
 
 def _draw_success_by_user(ax: Axes, store: EventStore) -> None:
-    _barh(ax, queries.success_by_user(store, TOP_N), "Connexions réussies par utilisateur",
+    _barh(ax, queries.success_by_user(store, TOP_N), "2. Connexions réussies par utilisateur",
           "Nombre de connexions réussies", "Utilisateur")
 
 
 def _draw_invalid_by_user(ax: Axes, store: EventStore) -> None:
     _barh(ax, queries.invalid_by_user(store, TOP_N),
-          f"'Invalid user' : top {TOP_N} des noms essayés",
+          f"3a. 'Invalid user' : top {TOP_N} par nom d'utilisateur",
           "Nombre de tentatives", "Nom d'utilisateur invalide")
+
+
+def _draw_invalid_by_ip(ax: Axes, store: EventStore) -> None:
+    _barh(ax, queries.invalid_by_ip(store, TOP_N),
+          f"3b. 'Invalid user' : top {TOP_N} par adresse IP",
+          "Nombre de tentatives", "Adresse IP")
 
 
 GEO_NOTE: Final[str] = "Gris : pays inconnu (IP non géolocalisée) ou IP privée."
@@ -103,19 +109,20 @@ def chart_success_by_user(store: EventStore) -> Figure:
 
 
 def chart_invalid_users(store: EventStore) -> Figure:
-    fig, (ax,) = _new_figure()
-    _draw_invalid_by_user(ax, store)
+    fig, (ax_user, ax_ip) = _new_figure(ncols=2, width=14)
+    _draw_invalid_by_user(ax_user, store)
+    _draw_invalid_by_ip(ax_ip, store)
     fig.tight_layout()
     return fig
 
 
 def chart_combined(store: EventStore) -> Figure:
-    """Les 3 graphiques dans une seule fenêtre (2 en haut, 1 en bas)."""
-    fig = plt.figure(figsize=(15, 11), facecolor=SURFACE)
-    grid = fig.add_gridspec(2, 2)
-    _draw_failed_by_country(fig.add_subplot(grid[0, 0]), store)
-    _draw_success_by_user(fig.add_subplot(grid[0, 1]), store)
-    _draw_invalid_by_user(fig.add_subplot(grid[1, :]), store)
+    """Les 3 graphiques dans une seule fenêtre (le 3 a deux panneaux : 3a nom, 3b IP)."""
+    fig, axes = plt.subplots(2, 2, figsize=(16, 11), facecolor=SURFACE)
+    _draw_failed_by_country(axes[0][0], store)
+    _draw_success_by_user(axes[0][1], store)
+    _draw_invalid_by_user(axes[1][0], store)
+    _draw_invalid_by_ip(axes[1][1], store)
     fig.suptitle("Analyse des logs SSH (auth.log)", fontsize=15, fontweight="bold", color=INK)
     fig.text(0.01, 0.005, GEO_NOTE, fontsize=8, color=INK_SECONDARY)
     fig.tight_layout(rect=(0, 0.02, 1, 0.96))
