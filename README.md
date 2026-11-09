@@ -25,7 +25,7 @@ Les images sont dans `output/`.
 
 - tentatives échouées par pays
 - connexions réussies par utilisateur
-- tentatives "Invalid user" par nom d'utilisateur et par IP
+- tentatives échouées avec "Invalid user", par nom d'utilisateur
 
 ## Les dossiers
 
