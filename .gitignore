@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# macOS
+.DS_Store
+
+# Fichiers générés par l'application
+logs/
+output/
