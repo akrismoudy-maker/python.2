@@ -41,7 +41,7 @@ Il faut Python 3.14 (voir `.python-version`) et [uv](https://docs.astral.sh/uv/)
 
 ```bash
 uv sync                    # crée .venv et installe requests, matplotlib, psycopg2-binary
-uv run main.py             # pipeline complet, ouvre UNE fenêtre avec les 4 graphiques
+uv run main.py             # pipeline complet, ouvre UNE fenêtre avec les 3 graphiques
 uv run main.py --no-show   # écrit seulement les PNG (utile sans écran)
 uv run main.py --no-geo    # n'appelle pas ipinfo.io (utilise seulement le cache)
 ```
@@ -52,7 +52,7 @@ Options par variables d'environnement :
   données contient plus de 1800 IP différentes en échec (voir plus bas).
 - `LOG_YEAR` : année des logs (2026 par défaut), car `auth.log` n'écrit pas l'année.
 
-Les graphiques sont écrits dans `output/` : `dashboard.png` (les 4 panneaux ensemble, c'est
+Les graphiques sont écrits dans `output/` : `dashboard.png` (les 3 graphiques ensemble, c'est
 la seule fenêtre affichée), plus `1_failed_by_country.png`, `2_success_by_user.png` et
 `3_invalid_users.png` séparément.
 
@@ -104,8 +104,8 @@ dans des lignes "message repeated"), 3 166 lignes "Invalid user" et 1 connexion 
    avec leur code ISO (CN, US, FR...), c'est ce que renvoie ipinfo.
 2. **Connexions réussies par utilisateur.** Sur ces logs, un seul utilisateur s'est
    connecté (`adminesisa`, une fois), donc le graphique n'a qu'une barre.
-3. **Tentatives "Invalid user"**, en deux panneaux : top 15 des noms d'utilisateur
-   essayés (admin, esisa, ubuntu...) et top 15 des IP sources.
+3. **Tentatives "Invalid user"** : top 15 des noms d'utilisateur essayés (admin, esisa,
+   ubuntu...).
 
 ## Stratégie de logging
 
